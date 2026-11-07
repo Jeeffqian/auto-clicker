@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Clicker — up to 300 CPS</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --danger: #dc2626;
+    --border: #e5e7eb;
+    --target: #eff6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .app {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  h1 { font-size: 22px; text-align: center; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .card h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  /* Button choice */
+  .btn-group { display: flex; gap: 10px; }
+  .btn-group label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: border-color .15s, background .15s;
+  }
+  .btn-group input { accent-color: var(--accent); }
+  .btn-group label.selected {
+    border-color: var(--accent);
+    background: var(--target);
+  }
+  /* CPS slider */
+  .cps-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  #cpsValue { font-weight: 700; color: var(--accent); font-size: 16px; }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  /* Target pad */
+  #target {
+    height: 140px;
+    border: 2px dashed var(--accent);
+    border-radius: 12px;
+    background: var(--target);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    user-select: none;
+    cursor: crosshair;
+    transition: background .1s;
+  }
+  #target.hit { background: #dbeafe; }
+  #target .big { font-size: 28px; font-weight: 800; }
+  #target .sub { font-size: 12px; color: var(--muted); }
+  /* Controls */
+  #toggleBtn {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #toggleBtn:hover { background: var(--accent-hover); }
+  #toggleBtn.running { background: var(--danger); }
+  .stats {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+  }
+  .stat .num { font-size: 20px; font-weight: 700; }
+  .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  #statusDot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #9ca3af;
+    margin-right: 6px;
+  }
+  #statusDot.on { background: #16a34a; }
+  .hint { text-align: center; font-size: 12px; color: var(--muted); }
+  kbd {
+    background: var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Auto Clicker</h1>
+
+  <div class="card">
+    <h2>Mouse Button</h2>
+    <div class="btn-group">
+      <label id="lblLeft" class="selected">
+        <input type="radio" name="mbtn" value="left" checked> Left (LMB)
+      </label>
+      <label id="lblRight">
+        <input type="radio" name="mbtn" value="right"> Right (RMB)
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Speed</h2>
+    <div class="cps-row">
+      <span>Clicks per second</span>
+      <span id="cpsValue">10 CPS</span>
+    </div>
+    <input type="range" id="cpsSlider" min="1" max="300" value="10">
+  </div>
+
+  <div id="target">
+    <div class="big" id="targetCount">0</div>
+    <div class="sub">clicks land here — keep the cursor over this pad</div>
+  </div>
+
+  <button id="toggleBtn">Start (Space)</button>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat">
+        <div class="num"><span id="statusDot"></span><span id="statusText">Stopped</span></div>
+        <div class="lbl">status</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="totalClicks">0</div>
+        <div class="lbl">total clicks</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="actualCps">0</div>
+        <div class="lbl">measured CPS</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">Press <kbd>Space</kbd> anywhere to start / stop.
+  Note: browsers can't move your OS cursor — this clicks inside the page.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MAX_CPS = 300;
+
+  // ---------- State ----------
+  var cps = 10;
+  var button = "left"; // "left" | "right"
+  var running = false;
+  var timerId = null;
+  var totalClicks = 0;
+  var hoverTarget = false;
+
+  // ---------- Elements ----------
+  var cpsSlider = document.getElementById("cpsSlider");
+  var cpsValue = document.getElementById("cpsValue");
+  var toggleBtn = document.getElementById("toggleBtn");
+  var target = document.getElementById("target");
+  var targetCount = document.getElementById("targetCount");
+  var totalClicksEl = document.getElementById("totalClicks");
+  var actualCpsEl = document.getElementById("actualCps");
+  var statusText = document.getElementById("statusText");
+  var statusDot = document.getElementById("statusDot");
+  var radios = document.querySelectorAll('input[name="mbtn"]');
+
+  // ---------- UI wiring ----------
+  cpsSlider.addEventListener("input", function () {
+    cps = Math.max(1, Math.min(MAX_CPS, parseInt(cpsSlider.value, 10) || 1));
+    cpsValue.textContent = cps + " CPS";
+  });
+
+  radios.forEach(function (r) {
+    r.addEventListener("change", function () {
+      button = r.value;
+      document.getElementById("lblLeft").classList.toggle("selected", button === "left");
+      document.getElementById("lblRight").classList.toggle("selected", button === "right");
+    });
+  });
+
+  toggleBtn.addEventListener("click", toggle);
+
+  // Space toggles, unless the slider/button has focus (Space would re-trigger them)
+  document.addEventListener("keydown", function (e) {
+    if (e.code !== "Space") return;
+    var tag = (document.activeElement && document.activeElement.tagName) || "";
+    if (tag === "INPUT" || tag === "BUTTON") return;
+    e.preventDefault();
+    toggle();
+  });
+
+  // Track whether the real cursor is over the target pad
+  target.addEventListener("mouseenter", function () { hoverTarget = true; });
+  target.addEventListener("mouseleave", function () { hoverTarget = false; });
+
+  // Manual clicks on the pad count too (and we need real events to count)
+  target.addEventListener("mousedown", function (e) {
+    if (e.button === 0) registerClick();
+  });
+  target.addEventListener("contextmenu", function (e) {
+    e.preventDefault(); // suppress the menu so RMB can be used
+    registerClick();
+  });
+
+  // ---------- Click engine (drift-corrected, like the Python version) ----------
+  function toggle() {
+    running ? stop() : start();
+  }
+
+  function start() {
+    if (running) return;
+    running = true;
+    toggleBtn.textContent = "Stop (Space)";
+    toggleBtn.classList.add("running");
+    statusText.textContent = "Running";
+    statusDot.classList.add("on");
+    scheduleLoop();
+  }
+
+  function stop() {
+    running = false;
+    if (timerId !== null) { clearTimeout(timerId); timerId = null; }
+    toggleBtn.textContent = "Start (Space)";
+    toggleBtn.classList.remove("running");
+    statusText.textContent = "Stopped";
+    statusDot.classList.remove("on");
+  }
+
+  function scheduleLoop() {
+    var nextTick = performance.now();
+    function tick() {
+      if (!running) return;
+      var interval = 1000 / cps;
+
+      fireClick();
+
+      nextTick += interval;
+      var delay = nextTick - performance.now();
+      if (delay < 0) nextTick = performance.now(); // resync if we fell behind
+      timerId = setTimeout(tick, Math.max(0, delay));
+    }
+    timerId = setTimeout(tick, 0);
+  }
+
+  function fireClick() {
+    // Auto-clicks only land while the real cursor is over the pad
+    if (!hoverTarget) return;
+    registerClick();
+  }
+
+  // Measured CPS: rolling 1-second window of click timestamps
+  var recentStamps = [];
+
+  function registerClick() {
+    totalClicks++;
+    recentStamps.push(performance.now());
+    targetCount.textContent = totalClicks;
+    totalClicksEl.textContent = totalClicks;
+    target.classList.add("hit");
+    setTimeout(function () { target.classList.remove("hit"); }, 60);
+  }
+
+  setInterval(function () {
+    var now = performance.now();
+    while (recentStamps.length && now - recentStamps[0] > 1000) recentStamps.shift();
+    actualCpsEl.textContent = recentStamps.length;
+  }, 250);
+})();
+</script>
+</body>
+</html>
